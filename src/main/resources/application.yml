@@ -1,0 +1,89 @@
+server:
+  port: 8080
+spring:
+  #rabbitmq配置
+  rabbitmq:
+    host: 8.163.11.86
+    username: admin
+    password: 123456
+    #虚拟主机
+#    virtual-host: /
+    #端口
+    port: 5672
+    listener:
+      simple:
+        #消费者最小数量
+        concurrency: 30
+        #消费者最大数量
+        max-concurrency: 30
+        #限制消费者 ， 每次只能处理一条消息
+        prefetch: 1
+        #启动时是否默认启动容器
+        auto-startup: true
+        #被拒绝时重新入队
+        default-requeue-rejected: true
+    template:
+      retry:
+        #启用消息重试机制
+        enabled: true
+        #初始重试间隔时间
+        initial-interval: 1000ms
+        #重试最大次数 ， 默认为3
+        max-attempts: 3
+        #重试最大时间间隔 , 默认为10000ms
+        max-interval: 10000ms
+        #重试间隔乘区 1s : 1 1 1 , 2s : 1 2 4
+        multiplier: 1
+  #在 RabbitMQ 中，initial-interval 和 max-interval 是用于指定消息重试机制的两个参数，
+  #它们的区别如下：
+  #1. initial-interval（初始间隔时间）：表示第一次重试的时间间隔，也就是在消息第一次处
+  #理失败后，等待多长时间再尝试重新发送消息。这个参数的默认值是 1 秒。
+  #2.max-interval（最大间隔时间）：表示重试过程中的最大时间间隔，也就是每次重试时，
+  #最长等待多长时间再尝试重新发送消息。这个参数的默认值是 10 秒。
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/seckill?useUnicode=true&characterEncoding=utf-8
+    username: root
+    password: 123456
+    #数据库连接池
+    hikari:
+      #连接池名
+      pool-name: Cbh_Hikari_Poll
+      #最小空闲连接
+      minimum-idle: 5
+      #空闲连接存活最大时间，默认60000(10分钟)
+      idle-timeout: 60000
+      # 最大连接数，默认是10
+      maximum-pool-size: 200
+      #从连接池返回来的连接自动提交
+      auto-commit: true
+      #连接最大存活时间。0表示永久存活，默认180000（30分钟）
+      max-lifetime: 180000
+      #连接超时时间，默认30000（30秒）
+      connection-timeout: 30000
+      #测试连接是否可用的查询语句
+      connection-test-query: select 1
+  thymeleaf:
+    cache: false
+  #配置redis
+  redis:
+    host: localhost
+    port: 6379
+    database: 1
+    timeout: 10000ms
+    jedis:
+      pool:
+        #最大连接数 , 默认为8 ,文档建议cup * 2
+        max-active: 14
+        #最大阻塞时间
+        max-wait: 10000ms
+        #连接数最大空闲连接数 默认为8
+        max-idle: 200
+        #最小空闲连接 , 默认为0
+        min-idle: 5
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/*Mapper.xml
+#mybatis sql打印
+#logging:  type-aliases-package: com.cbh.seckill.pojo
+#  level:
+#    com.cbh.seckill.mapper: debug
