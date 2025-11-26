@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/goods")
 public class GoodsController {
     @Resource
-    private RedisTemplate redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     //手动进行渲染需要的模板解析器
     @Resource
     private ThymeleafViewResolver thymeleafViewResolver;
@@ -194,7 +194,7 @@ public class GoodsController {
         goodsDetail = thymeleafViewResolver.getTemplateEngine().process("goodsDetail" , webContext);
         if (StringUtils.hasText(goodsDetail)){
             //将页面返回到redis ， 每60秒更新一次(删除后重新从db获取)
-            ops.set("goodsDetail" , goodsDetail , 60 , TimeUnit.SECONDS);
+            ops.set("goodsDetail:" + goodsId , goodsDetail , 60 , TimeUnit.SECONDS);
         }
         return goodsDetail;
     }

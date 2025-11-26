@@ -51,7 +51,7 @@ public class RabbitQMHeaderConfig {
         HashMap<String, Object> map = new HashMap<>();
         map.put("偶像练习生", "cxk");
         map.put("技能", "ctrl");
-        return BindingBuilder.bind(queue_header01()).to(headersExchange()).whereAll(map).match();
+        return BindingBuilder.bind(queue_header02()).to(headersExchange()).whereAll(map).match();
     }
 
 

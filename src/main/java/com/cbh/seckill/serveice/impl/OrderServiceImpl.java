@@ -15,7 +15,6 @@ import com.cbh.seckill.serveice.SeckillOrderService;
 import com.cbh.seckill.util.Md5Util;
 import com.cbh.seckill.util.UUIDUtil;
 import com.cbh.seckill.vo.GoodsVo;
-import com.sun.org.apache.xpath.internal.operations.Or;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -35,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class OrderServiceImpl extends ServiceImpl<OrderMapper , Order> implements OrderService {
     @Resource
-    private RedisTemplate redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     @Resource
     private SeckillOrderService seckillOrderService;
     @Resource
@@ -43,10 +42,16 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper , Order> implement
     @Resource
     private OrderMapper orderMapper;
     @Override
-
-//    @Transactional //开启事务
+    @Transactional
     public Order secKill(User user, GoodsVo goodsVo) {
         SeckillGoods goodone = seckillGoodsService.getOne(new QueryWrapper<SeckillGoods>().eq("goods_id", goodsVo.getId()));
+        if (goodone == null){
+            return null;
+        }
+        SeckillOrder exist = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>().eq("user_id", user.getId()).eq("goods_id", goodsVo.getId()));
+        if (exist != null){
+            return null;
+        }
         //判断库存是否为原子性操作
 //        goodone.setStockCount(goodone.getStockCount()-1);
 //        seckillGoodsService.updateById(goodone);
@@ -56,7 +61,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper , Order> implement
         //可以防止其他会话在同一行执行update
         log.info("userId={}" , user.getId());
         boolean update = seckillGoodsService.update(new UpdateWrapper<SeckillGoods>().setSql("stock_count = stock_count-1").eq("goods_id", goodsVo.getId()).gt("stock_count", 0));
-        if (!update){//如果更新失败，说明已经没有库存
+        if (!update){
+            // DB更新失败视为售罄：发布售罄标志到Redis，结果查询能快速早退
+            redisTemplate.opsForValue().set("seckillSoldOut:" + goodsVo.getId() , 1);
             return null;
         }
 
@@ -76,7 +83,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper , Order> implement
         //生成秒杀订单
         SeckillOrder seckillOrder = new SeckillOrder();
         seckillOrder.setGoodsId(goodsVo.getId());
-        seckillOrder.setOrderId(goodone.getId());
+        seckillOrder.setOrderId(order.getId());
         seckillOrder.setUserId(user.getId());
         seckillOrderService.save(seckillOrder);
 
@@ -113,7 +120,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper , Order> implement
         }
         //校验用户的验证码是否正确
         //从redis中取出验证码
-        String redisCaptcha = (String)redisTemplate.opsForValue().get("cahptcha:" + user.getId() + ":" + goodsId);
+        String redisCaptcha = (String)redisTemplate.opsForValue().get("captcha:" + user.getId() + ":" + goodsId);
         return captcha.equals(redisCaptcha);
     }
 }

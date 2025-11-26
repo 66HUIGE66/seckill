@@ -1,7 +1,7 @@
 package com.cbh.seckill.config;
 
 import com.cbh.seckill.interceptor.AccessLimitInterceptor;
-import org.springframework.stereotype.Controller;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -16,7 +16,7 @@ import java.util.List;
  * 辉学Java
  * 辉学Java
  */
-@Controller
+@Configuration
 @EnableWebMvc
 public class WebConfig implements WebMvcConfigurer {
 

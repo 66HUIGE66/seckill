@@ -1,9 +1,14 @@
 server:
   port: 8080
+  tomcat:
+    max-threads: 1000
+    accept-count: 1000
+    max-connections: 10000
+    connection-timeout: 60000ms
 spring:
   #rabbitmq配置
   rabbitmq:
-    host: 8.163.11.86
+    host: localhost
     username: admin
     password: 123456
     #虚拟主机
@@ -21,7 +26,8 @@ spring:
         #启动时是否默认启动容器
         auto-startup: true
         #被拒绝时重新入队
-        default-requeue-rejected: true
+        # 业务性重复异常不重入队，避免占用消费资源
+        default-requeue-rejected: false
     template:
       retry:
         #启用消息重试机制

@@ -18,8 +18,10 @@ import com.ramostear.captcha.HappyCaptcha;
 import com.ramostear.captcha.common.Fonts;
 import com.ramostear.captcha.support.CaptchaStyle;
 import com.ramostear.captcha.support.CaptchaType;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -37,6 +39,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -52,7 +55,9 @@ public class SeckillController implements InitializingBean {
     @Resource
     private RedisScript<Long> redisScript;
     @Resource
-    private RedisTemplate redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
     @Resource
     private OrderService orderService;
     @Resource
@@ -62,184 +67,18 @@ public class SeckillController implements InitializingBean {
     @Resource
     private RabbitMQSenderMessage mqSender;
     //内存标记 ， 记录秒杀商品是否还有库存
-    private HashMap<Long , Boolean> entryStockMap = new HashMap<>();
+    private ConcurrentHashMap<Long , Boolean> entryStockMap = new ConcurrentHashMap<>();
     //处理秒杀请求
-//    @RequestMapping("/doSeckill")
-//    public String doSeckill(Model model , User user , Long goodsId){
-//        //TODO Version1.0
-//        if (user == null){ //用户没有登录
-//            return "login";
-//        }
-//        model.addAttribute("user" , user);
-//        GoodsVo goodsVo = goodsService.findGoodsVoById(goodsId);
-//        if (goodsVo.getStockCount() < 1){
-//            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//            return "secKillFail";
-//        }
-//        //判断是否重购
-//        SeckillOrder secOne = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>().eq("user_id", user.getId()).eq("goods_id", goodsId));
-//        if (secOne != null){
-//            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK_LIMIT.getMessage());
-//            return "secKillFail";
-//        }
-//        //抢购
-//        Order order = orderService.secKill(user, goodsVo);
-//        if (order == null){
-//            model.addAttribute("errmsg" , RespBeanEnum.SECKILL_ERROR.getMessage());
-//            return "secKillFail";
-//        }
-//        //进入订单列表
-//        model.addAttribute("order" , order);
-//        model.addAttribute("goods" , goodsVo);
-//        //TODO Version1.0
-//        return "orderDetail";//进入订单详情
-//    }
-
-//    @RequestMapping("/doSeckill")
-//    public String doSeckill(Model model , User user , Long goodsId){
-//        //TODO Version2.0
-//        if (user == null){ //用户没有登录
-//            return "login";
-//        }
-//        model.addAttribute("user" , user);
-//        GoodsVo goodsVo = goodsService.findGoodsVoById(goodsId);
-//        if (goodsVo.getStockCount() < 1){
-//            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//            return "secKillFail";
-//        }
-//        //判断是否重购
-////        SeckillOrder secOne = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>().eq("user_id", user.getId()).eq("goods_id", goodsId));
-////        if (secOne != null){
-////            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK_LIMIT.getMessage());
-////            return "secKillFail";
-////        }
-//        //到redis中查看用户是否已经购买过了
-//        SeckillOrder seckillOrder = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsVo.getId());
-//        if (seckillOrder != null){ // 说明已经抢购
-//            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//            return "secKillFail";
-//        }
-
-//        //抢购
-//        Order order = orderService.secKill(user, goodsVo);
-//        if (order == null){
-//            model.addAttribute("errmsg" , RespBeanEnum.SECKILL_ERROR.getMessage());
-//            return "secKillFail";
-//        }
-//        //进入订单列表
-//        model.addAttribute("order" , order);
-//        model.addAttribute("goods" , goodsVo);
-//        //TODO Version2.0
-//        return "orderDetail";//进入订单详情
-//    }
-//@RequestMapping("/doSeckill")
-//public String doSeckill(Model model , User user , Long goodsId){
-//    //TODO Version3.0
-//    if (user == null){ //用户没有登录
-//        return "login";
-//    }
-//    model.addAttribute("user" , user);
-//    GoodsVo goodsVo = goodsService.findGoodsVoById(goodsId);
-//    if (goodsVo.getStockCount() < 1){
-//        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//        return "secKillFail";
-//    }
-//    //判断是否重购
-////        SeckillOrder secOne = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>().eq("user_id", user.getId()).eq("goods_id", goodsId));
-////        if (secOne != null){
-////            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK_LIMIT.getMessage());
-////            return "secKillFail";
-////        }
-//    //到redis中查看用户是否已经购买过了
-//    SeckillOrder seckillOrder = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsVo.getId());
-//    if (seckillOrder != null){ // 说明已经抢购
-//        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//        return "secKillFail";
-//    }
-//    //库存预减 ， 如果在减库存中发现秒杀商品已经没有了 ， 就直接返回
-//    //有效减少线程堆积 ，
-//    // decrement 是具有原子性的
-//    Long decrement = redisTemplate.opsForValue().decrement("seckillGoods:" + goodsId);
-//    if(decrement < 0){//说明此时没有库存了
-//        redisTemplate.opsForValue().increment("seckillGoods:" + goodsId);
-//        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//        return "secKillFail";
-//    }
-//    //抢购
-//    Order order = orderService.secKill(user, goodsVo);
-//    if (order == null){
-//        model.addAttribute("errmsg" , RespBeanEnum.SECKILL_ERROR.getMessage());
-//        return "secKillFail";
-//    }
-//    //进入订单列表
-//    model.addAttribute("order" , order);
-//    model.addAttribute("goods" , goodsVo);
-//    //TODO Version3.0
-//    return "orderDetail";//进入订单详情
-//}
-//@RequestMapping("/doSeckill")
-//public String doSeckill(Model model , User user , Long goodsId){
-//    //TODO Version4.0
-//    if (user == null){ //用户没有登录
-//        return "login";
-//    }
-//    model.addAttribute("user" , user);
-//    GoodsVo goodsVo = goodsService.findGoodsVoById(goodsId);
-//    if (goodsVo.getStockCount() < 1){
-//        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//        return "secKillFail";
-//    }
-//    //判断是否重购
-////        SeckillOrder secOne = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>().eq("user_id", user.getId()).eq("goods_id", goodsId));
-////        if (secOne != null){
-////            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK_LIMIT.getMessage());
-////            return "secKillFail";
-////        }
-//    //到redis中查看用户是否已经购买过了
-//    SeckillOrder seckillOrder = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsVo.getId());
-//    if (seckillOrder != null){ // 说明已经抢购
-//        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//        return "secKillFail";
-//    }
-//    //对map 进行判断 如果已经么有库存则直接返回
-//    if (entryStockMap.get(goodsId)){
-//          return "secKillFail";
-//    }
-//    //库存预减 ， 如果在减库存中发现秒杀商品已经没有了 ， 就直接返回
-//    //有效减少线程堆积 ，
-//    // decrement 是具有原子性的
-//    Long decrement = redisTemplate.opsForValue().decrement("seckillGoods:" + goodsId);
-//    if(decrement < 0){//说明此时没有库存了
-//        entryStockMap.put(goodsId , true);
-//        redisTemplate.opsForValue().increment("seckillGoods:" + goodsId);
-//        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//        return "secKillFail";
-//    }
-//    //抢购
-//    Order order = orderService.secKill(user, goodsVo);
-//    if (order == null){
-//        model.addAttribute("errmsg" , RespBeanEnum.SECKILL_ERROR.getMessage());
-//        return "secKillFail";
-//    }
-//    //进入订单列表
-//    model.addAttribute("order" , order);
-//    model.addAttribute("goods" , goodsVo);
-//    //TODO Version4.0
-//    return "orderDetail";//进入订单详情
-//}
     //加入消息队列
 @RequestMapping("/doSeckill")
-public String doSeckill(Model model , User user , Long goodsId){
+    public String doSeckill(Model model , User user , Long goodsId){
     //TODO Version5.0
     if (user == null){ //用户没有登录
         return "login";
     }
     model.addAttribute("user" , user);
-    GoodsVo goodsVo = goodsService.findGoodsVoById(goodsId);
-    if (goodsVo.getStockCount() < 1){
-        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-        return "secKillFail";
-    }
+    
+
     //判断是否重购
 //        SeckillOrder secOne = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>().eq("user_id", user.getId()).eq("goods_id", goodsId));
 //        if (secOne != null){
@@ -247,117 +86,56 @@ public String doSeckill(Model model , User user , Long goodsId){
 //            return "secKillFail";
 //        }
     //到redis中查看用户是否已经购买过了
-    SeckillOrder seckillOrder = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsVo.getId());
+    SeckillOrder seckillOrder = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsId);
     if (seckillOrder != null){ // 说明已经抢购
         model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK_LIMIT.getMessage());
         return "secKillFail";
     }
     //对map 进行判断 如果已经么有库存则直接返回
-    if (entryStockMap.get(goodsId)){
+    if (Boolean.TRUE.equals(entryStockMap.get(goodsId))){
         return "secKillFail";
     }
-    //库存预减 ， 如果在减库存中发现秒杀商品已经没有了 ， 就直接返回
-    //有效减少线程堆积 ，
-    // decrement 是具有原子性，
-//    Long decrement = redisTemplate.opsForValue().decrement("seckillGoods:" + goodsId);
-//    if(decrement < 0){//说明此时没有库存了
-//        entryStockMap.put(goodsId , true);
-//        redisTemplate.opsForValue().increment("seckillGoods:" + goodsId);
-//        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-//        return "secKillFail";
-//    }
-    //使用Redis分布式锁
-    //对应当前项目使用redisTemplate.opsForValue().increment就可以控制抢购，
-    // 因为该方法具有原子性
-    //但如果需要需要进行较多的操作则需要保证隔离性，需要扩大隔离范围，部分操作还需要原子性
-
-    //获取锁，得到应该uuid值转为锁的值
-    String uuid = UUID.randomUUID().toString();
-    Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", uuid, 3, TimeUnit.SECONDS);
-
-    if (lock){
-//        //释放锁
-//        //定义lua脚本
-//        String script = "if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end";
-//        //使用redis执行lua
-//        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
-//        redisScript.setScriptText(script);
-//        redisScript.setResultType(Long.class);
-        //执行自己的业务
-        Long decrement = redisTemplate.opsForValue().decrement("seckillGoods:" + goodsId);
-        if(decrement < 0){//说明此时没有库存了
-            entryStockMap.put(goodsId , true);
-            redisTemplate.opsForValue().increment("seckillGoods:" + goodsId);
-            //释放锁
-            redisTemplate.execute(redisScript , Arrays.asList("lock"), uuid);
-            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
-            return "secKillFail";
-        }
-        redisTemplate.execute(redisScript , Arrays.asList("lock"), uuid);
-    } else {
-        //获取锁失败、返回信息, 这次抢购失败,请继续抢购
-        model.addAttribute("errmsg", RespBeanEnum.SEC_KILL_RETRY.getMessage());
-        return "secKillFail";//错误页面
+    // 一致性增强：Lua原子“去重哨兵+扣库存”，成功则直接入队并返回
+    String lua = "local dup=KEYS[2]; local stock=KEYS[1]; if redis.call('exists',dup)==1 then return -1 end; local v=redis.call('get',stock); if not v then return 0 end; local n=tonumber(v); if n<=0 then return 0 end; redis.call('decr',stock); redis.call('set',dup,'1','EX',ARGV[1]); return 1";
+    DefaultRedisScript<Long> stockScript = new DefaultRedisScript<>();
+    stockScript.setScriptText(lua);
+    stockScript.setResultType(Long.class);
+    String stockKey = "seckillGoods:" + goodsId;
+    String vs = stringRedisTemplate.opsForValue().get(stockKey);
+    if (vs != null && !vs.matches("^-?\\d+$")) {
+        stringRedisTemplate.opsForValue().set(stockKey, "0");
     }
-
-    //抢购 , 向消息队列发送秒杀消息 ， 实现了秒杀的异步请求
-    //发送消息后可以快速返回临时结果
+    Long r = (Long)stringRedisTemplate.execute(stockScript , Arrays.asList(stockKey , "seckillDup:" + user.getId() + ":" + goodsId) , "300");
+    if (r == null || r == 0L){
+        entryStockMap.put(goodsId , true);
+        redisTemplate.opsForValue().set("seckillSoldOut:" + goodsId , 1 , 1 , TimeUnit.HOURS);
+        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK.getMessage());
+        return "secKillFail";
+    }
+    if (r == -1L){
+        model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK_LIMIT.getMessage());
+        return "secKillFail";
+    }
     SecKillMessage secKillMessage = new SecKillMessage(user, goodsId);
+    stringRedisTemplate.opsForValue().set("seckillPending:" + user.getId() + ":" + goodsId , "1" , 600 , TimeUnit.SECONDS);
+    stringRedisTemplate.opsForZSet().add("seckillPendingSet" , user.getId() + ":" + goodsId , System.currentTimeMillis());
     mqSender.sendMessage(JSONUtil.toJsonStr(secKillMessage));
     model.addAttribute("errmsg" , "排队中");
-    //TODO Version5.0
-    return "secKillFail";//进入订单详情
+    return "secKillFail";
+
+    
+    
+
+    
+
+
+    
+        
+
+    
+    
 }
-    //隐藏路径，增加秒杀安全
-    //直接返回RespBean
-//@RequestMapping("/{path}/doSeckill")
-//@ResponseBody
-//public RespBean doSeckill(@PathVariable String path , User user , Long goodsId){
-//    //TODO Version6.0
-//    if (user == null){ //用户没有登录
-//        return RespBean.error(RespBeanEnum.SESSION_ERROR);
-//    }
-//    //增加判断路径
-//    boolean checkPath = orderService.checkPath(user, goodsId, path);
-//    if (!checkPath){
-//        //校验失败
-//        return RespBean.error(RespBeanEnum.REQUEST_ILLEGAL);
-//    }
-//    GoodsVo goodsVo = goodsService.findGoodsVoById(goodsId);
-//    if (goodsVo.getStockCount() < 1){
-//        return RespBean.error(RespBeanEnum.ENTRY_STOCK);
-//    }
-//    //判断是否重购
-////        SeckillOrder secOne = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>().eq("user_id", user.getId()).eq("goods_id", goodsId));
-////        if (secOne != null){
-////            model.addAttribute("errmsg" , RespBeanEnum.ENTRY_STOCK_LIMIT.getMessage());
-////            return "secKillFail";
-////        }
-//    //到redis中查看用户是否已经购买过了
-//    SeckillOrder seckillOrder = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsVo.getId());
-//    if (seckillOrder != null){ // 说明已经抢购
-//        return RespBean.error(RespBeanEnum.ENTRY_STOCK_LIMIT);
-//    }
-//    //对map 进行判断 如果已经么有库存则直接返回
-//    if (entryStockMap.get(goodsId)){
-//        return RespBean.error(RespBeanEnum.ENTRY_STOCK);
-//    }
-//    //库存预减 ， 如果在减库存中发现秒杀商品已经没有了 ， 就直接返回
-//    //有效减少线程堆积 ，
-//    // decrement 是具有原子性的
-//    Long decrement = redisTemplate.opsForValue().decrement("seckillGoods:" + goodsId);
-//    if(decrement < 0){//说明此时没有库存了
-//        entryStockMap.put(goodsId , true);
-//        redisTemplate.opsForValue().increment("seckillGoods:" + goodsId);
-//        return RespBean.error(RespBeanEnum.ENTRY_STOCK);
-//    }
-//    //抢购 , 向消息队列发送秒杀消息 ， 实现了秒杀的异步请求
-//    //发送消息后可以快速返回临时结果
-//    SecKillMessage secKillMessage = new SecKillMessage(user, goodsId);
-//    mqSender.sendMessage(JSONUtil.toJsonStr(secKillMessage));
-//    //TODO Version6.0
-//    return RespBean.error(RespBeanEnum.SEK_KILL_WAIT);
-//}
+
     //该方法所在类的所有属性出刷后自动执行的
     //可以在改方法中将所有秒杀商品的库存量 加载到Redis
     @Override
@@ -373,7 +151,8 @@ public String doSeckill(Model model , User user , Long goodsId){
             //初始化map , fales表示有库存 ， true表示没有库存
 
             entryStockMap.put(goodsVo.getId(),  false);
-            redisTemplate.opsForValue().set("seckillGoods:" + goodsVo.getId() , goodsVo.getStockCount());
+            // 初始化库存为纯数字字符串，避免DECR因非数字报错
+            stringRedisTemplate.opsForValue().set("seckillGoods:" + goodsVo.getId() , String.valueOf(goodsVo.getStockCount()));
         });
     }
     //获取秒杀路径
@@ -381,23 +160,12 @@ public String doSeckill(Model model , User user , Long goodsId){
     @ResponseBody
     //@AccessLimit 使用该注解的方式实现防止用户刷 ， 通用性和灵活性增强
     //second = 5（5秒过期） , maxCount = 5（最大访问次数）, needLogin = true（是否需要登录）
-    @AccessLimit(second = 5 , maxCount = 10 , needLogin = true)
+    @AccessLimit(second = 5 , maxCount = 5 , needLogin = true)
     public RespBean getSeckillPath(User user , Long goodsId , String captcha , HttpServletRequest request , HttpServletResponse response){
         if (user == null || goodsId < 0 || !StringUtils.hasText(captcha)){
             return RespBean.error(RespBeanEnum.SESSION_ERROR);
         }
         //增加业务逻辑：加入Redis计数器，完成对用户的限流防刷
-//        String uri = request.getRequestURI();
-//        ValueOperations ops = redisTemplate.opsForValue();
-//        String key = uri + ":" + user.getId();
-//        Integer cnt = (Integer) ops.get(key);
-//        if (cnt == null){//第一次访问
-//            ops.set(key , 1 ,5 ,TimeUnit.SECONDS);
-//        } else if (cnt < 5){
-////            ops.increment(key);
-//        } else { //说明用户在刷接口
-//            return RespBean.error(RespBeanEnum.ACCESS_LIMIT_REACHED);
-//        }
         //校验用户输入的验证码是否正确
         boolean check = orderService.checkCaptcha(user, goodsId, captcha);
         if (!check){
@@ -423,5 +191,93 @@ public String doSeckill(Model model , User user , Long goodsId){
         //key：captcha:userId:goodsId
         redisTemplate.opsForValue().set("cahptcha:" + user.getId() + ":" + goodsId , (String)request.getSession().getAttribute("happy-captcha") , 30 , TimeUnit.SECONDS);
 
+    }
+    //查询秒杀结果：成功返回订单ID，排队中返回等待提示，失败返回库存不足
+    @RequestMapping("/result")
+    @ResponseBody
+    public RespBean getSeckillResult(User user , Long goodsId){
+        if (user == null || goodsId == null || goodsId <= 0){
+            return RespBean.error(RespBeanEnum.SESSION_ERROR);
+        }
+        SeckillOrder seckillOrder = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>()
+                .eq("user_id", user.getId())
+                .eq("goods_id", goodsId));
+        if (seckillOrder != null){
+            return RespBean.success(seckillOrder.getOrderId());
+        }
+        Boolean soldOutMem = entryStockMap.get(goodsId);
+        Boolean soldOutRedis = redisTemplate.hasKey("seckillSoldOut:" + goodsId);
+        if ((soldOutMem != null && soldOutMem) || Boolean.TRUE.equals(soldOutRedis)){
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK);
+        }
+        return RespBean.error(RespBeanEnum.SEK_KILL_WAIT);
+    }
+
+    @RequestMapping("/{path}/doSeckill")
+    @ResponseBody
+    public RespBean doSeckillPath(@PathVariable String path , User user , Long goodsId){
+        if (user == null){
+            return RespBean.error(RespBeanEnum.SESSION_ERROR);
+        }
+        boolean checkPath = orderService.checkPath(user, goodsId, path);
+        if (!checkPath){
+            return RespBean.error(RespBeanEnum.REQUEST_ILLEGAL);
+        }
+        SeckillOrder seckillOrder = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsId);
+        if (seckillOrder != null){
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK_LIMIT);
+        }
+        if (Boolean.TRUE.equals(entryStockMap.get(goodsId))){
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK);
+        }
+        String s = "local dup=KEYS[2]; local stock=KEYS[1]; if redis.call('exists',dup)==1 then return -1 end; local v=redis.call('get',stock); if not v then return 0 end; local n=tonumber(v); if n<=0 then return 0 end; redis.call('decr',stock); redis.call('set',dup,'1','EX',ARGV[1]); return 1";
+        DefaultRedisScript<Long> stockScript = new DefaultRedisScript<>();
+        stockScript.setScriptText(s);
+        stockScript.setResultType(Long.class);
+        Long r = (Long)redisTemplate.execute(stockScript , Arrays.asList("seckillGoods:" + goodsId , "seckillDup:" + user.getId() + ":" + goodsId) , "300");
+        if (r == null || r == 0L){
+            entryStockMap.put(goodsId , true);
+            redisTemplate.opsForValue().set("seckillSoldOut:" + goodsId , 1 , 1 , TimeUnit.HOURS);
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK);
+        }
+        if (r == -1L){
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK_LIMIT);
+        }
+        SecKillMessage secKillMessage = new SecKillMessage(user, goodsId);
+        mqSender.sendMessage(JSONUtil.toJsonStr(secKillMessage));
+        return RespBean.error(RespBeanEnum.SEK_KILL_WAIT);
+    }
+
+    @RequestMapping("/doSeckillSync")
+    @ResponseBody
+    public RespBean doSeckillSync(User user , Long goodsId){
+        if (user == null){
+            return RespBean.error(RespBeanEnum.SESSION_ERROR);
+        }
+        if (goodsId == null || goodsId <= 0){
+            return RespBean.error(RespBeanEnum.REQUEST_ILLEGAL);
+        }
+        if (Boolean.TRUE.equals(entryStockMap.get(goodsId))){
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK);
+        }
+        String s = "local dup=KEYS[2]; local stock=KEYS[1]; if redis.call('exists',dup)==1 then return -1 end; local v=redis.call('get',stock); if not v then return 0 end; local n=tonumber(v); if n<=0 then return 0 end; redis.call('decr',stock); redis.call('set',dup,'1','EX',ARGV[1]); return 1";
+        DefaultRedisScript<Long> stockScript = new DefaultRedisScript<>();
+        stockScript.setScriptText(s);
+        stockScript.setResultType(Long.class);
+        Long r = (Long)redisTemplate.execute(stockScript , Arrays.asList("seckillGoods:" + goodsId , "seckillDup:" + user.getId() + ":" + goodsId) , "300");
+        if (r == null || r == 0L){
+            entryStockMap.put(goodsId , true);
+            redisTemplate.opsForValue().set("seckillSoldOut:" + goodsId , 1 , 1 , TimeUnit.HOURS);
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK);
+        }
+        if (r == -1L){
+            return RespBean.error(RespBeanEnum.ENTRY_STOCK_LIMIT);
+        }
+        GoodsVo goodsVo = goodsService.findGoodsVoById(goodsId);
+        Order order = orderService.secKill(user , goodsVo);
+        if (order == null){
+            return RespBean.error(RespBeanEnum.SECKILL_ERROR);
+        }
+        return RespBean.success(order.getId());
     }
 }

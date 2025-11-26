@@ -30,7 +30,7 @@ import javax.servlet.http.HttpServletResponse;
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper , User> implements Userservice {
     @Resource
-    private RedisTemplate redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     @Resource
     private UserMapper userMapper;
     @Override
