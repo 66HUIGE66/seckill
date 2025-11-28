@@ -32,7 +32,7 @@ public class AccessLimitInterceptor implements HandlerInterceptor {
     @Resource
     private Userservice userservice;
     @Resource
-    private RedisTemplate redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         if (handler instanceof HandlerMethod){
@@ -66,13 +66,17 @@ public class AccessLimitInterceptor implements HandlerInterceptor {
                 ops.set(key , 1 ,second , TimeUnit.SECONDS);
             } else if (cnt < maxCount){
                 //            ops.increment(key);
-                ops.set(key , cnt + 1 , 5 , TimeUnit.SECONDS);
+                ops.set(key , cnt + 1 , second , TimeUnit.SECONDS);
             } else { //说明用户在刷接口
                 render(response , RespBeanEnum.ACCESS_LIMIT_REACHED);
                 return false;
             }
         }
         return true;
+    }
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        UserContext.setUser(null);
     }
     //构建返回对象-以流对象进行返回
     private void render(HttpServletResponse response , RespBeanEnum respBeanEnum) throws IOException {

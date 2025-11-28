@@ -50,6 +50,6 @@
             t_seckill_goods sg
             ON
                 g.id = sg.goods_id
-        where g.id = ${goodsId}
+        where g.id = #{goodsId}
     </select>
 </mapper>

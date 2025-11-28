@@ -4,8 +4,8 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.cbh</groupId>
     <artifactId>seckill</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <packaging>war</packaging>
+<!--    <version>seckill</version>-->
+    <packaging>jar</packaging>
     <name>seckill</name>
     <description>seckill</description>
     <properties>
@@ -20,6 +20,10 @@
         <version>2.5.4</version>
     </parent>
     <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
         <!--引入happycaptha依赖-->
         <dependency>
             <groupId>com.ramostear</groupId>
@@ -131,7 +135,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.cbh.seckill.SeckillApplication</mainClass>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>

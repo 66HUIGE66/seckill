@@ -2,6 +2,7 @@ package com.cbh.seckill.exception;
 
 import com.cbh.seckill.vo.RespBean;
 import com.cbh.seckill.vo.RespBeanEnum;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -11,10 +12,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  *
  */
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
     //处理所有的异常
     @ExceptionHandler({Exception.class})
     public RespBean ExceptionHandler(Exception e) {
+        log.error("Unhandled exception", e);
         //如果是全局异常，正常处理
         if (e instanceof GlobalException) {
             GlobalException ex = (GlobalException) e;

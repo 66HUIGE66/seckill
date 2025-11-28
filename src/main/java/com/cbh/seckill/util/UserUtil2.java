@@ -4,7 +4,6 @@ import com.cbh.seckill.pojo.User;
 import com.cbh.seckill.vo.RespBean;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -22,7 +21,7 @@ import java.util.List;
  */
 //生成多用户工具类
 //创建用户，并且去登录得到userticket，得到的userTicket写入到config.txt文件内
-public class UserUtil {
+public class UserUtil2 {
     public static void create(int count) throws Exception {
         List<User> users = new ArrayList<>(count);
         //count表示你要创建的用户个数
@@ -53,7 +52,7 @@ public class UserUtil {
         connection.close();
         System.out.println("insert to do");
         //模拟登录,发出登录拿到userTicket
-        String urlStr = "http://localhost:8080/login/doLogin";
+        String urlStr = "http://121.43.113.95:8080/login/doLogin";
         File file = new File("D:\\apache-jmeter-5.6.3\\apache-jmeter-5.6.3\\cbhjemeter\\config2.txt");
         if (file.exists()) {
             file.delete();
@@ -102,7 +101,7 @@ public class UserUtil {
     }
 
     private static Connection getConn() throws Exception {
-        String url = "jdbc:mysql://localhost:3306/seckill?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai";
+        String url = "jdbc:mysql://121.43.113.95:3306/seckill?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai";
         String username = "root";
         String password = "123456";
         String driver = "com.mysql.cj.jdbc.Driver";
@@ -111,6 +110,6 @@ public class UserUtil {
     }
 
     public static void main(String[] args) throws Exception {
-        create(2000);//创建了2000个用户.
+        create(700);//创建了700个用户.
     }
 }
